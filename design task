@@ -1,0 +1,97 @@
+clc;
+clear;
+close all;
+
+%% Parameters
+
+totalSpectrum = 100;        % MHz
+LTE_users = 30;
+NR_users = 50;
+
+totalUsers = LTE_users + NR_users;
+
+bandwidth = zeros(totalUsers,1);
+
+throughput = zeros(totalUsers,1);
+
+SINR = 5 + 25*rand(totalUsers,1);      % Random SINR (dB)
+
+traffic = randi([5 20],totalUsers,1);   % Traffic demand
+
+%% Dynamic Spectrum Sharing
+
+totalDemand = sum(traffic);
+
+for i=1:totalUsers
+
+    bandwidth(i)=totalSpectrum*(traffic(i)/totalDemand);
+
+end
+
+%% Throughput Calculation
+
+for i=1:totalUsers
+
+    snr = 10^(SINR(i)/10);
+
+    throughput(i)=bandwidth(i)*log2(1+snr);
+
+end
+
+%% Separate LTE and 5G
+
+LTE_tp = throughput(1:LTE_users);
+
+NR_tp = throughput(LTE_users+1:end);
+
+LTE_bw = bandwidth(1:LTE_users);
+
+NR_bw = bandwidth(LTE_users+1:end);
+
+%% Results
+
+fprintf("Average LTE Throughput = %.2f Mbps\n",mean(LTE_tp));
+
+fprintf("Average 5G Throughput = %.2f Mbps\n",mean(NR_tp));
+
+fprintf("LTE Bandwidth = %.2f MHz\n",sum(LTE_bw));
+
+fprintf("5G Bandwidth = %.2f MHz\n",sum(NR_bw));
+
+%% Plot Bandwidth
+
+figure;
+bar([sum(LTE_bw) sum(NR_bw)]);
+xticklabels({'LTE','5G'});
+ylabel('Allocated Bandwidth (MHz)');
+title('Spectrum Sharing');
+
+%% Throughput
+
+figure;
+plot(LTE_tp,'bo-','LineWidth',2);
+hold on;
+plot(LTE_users+1:totalUsers,NR_tp,'r*-','LineWidth',2);
+
+xlabel('Users');
+ylabel('Throughput (Mbps)');
+legend('LTE','5G');
+grid on;
+title('User Throughput');
+
+%% Pie Chart
+
+figure;
+pie([sum(LTE_bw),sum(NR_bw)]);
+legend('LTE','5G');
+title('Spectrum Utilization');
+
+%% CDF
+
+figure;
+cdfplot(LTE_tp);
+hold on;
+cdfplot(NR_tp);
+legend('LTE','5G');
+title('CDF of Throughput');
+grid on;
