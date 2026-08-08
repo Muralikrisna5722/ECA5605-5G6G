@@ -1,0 +1,130 @@
+clc;
+clear;
+close all;
+
+%% Parameters
+
+BW = 10e6;               % Total Bandwidth (10 MHz)
+Nsc = 64;                % Number of OFDMA Subcarriers
+Users = 10:10:100;       % User Density
+Pt = 1;                  % Total Power (W)
+Noise = 1e-9;            % Noise Power
+
+avgThroughput = zeros(length(Users),1);
+avgDelay = zeros(length(Users),1);
+avgPower = zeros(length(Users),1);
+
+%% Simulation
+
+for u = 1:length(Users)
+
+    K = Users(u);
+
+    channel = abs(randn(K,Nsc)).^2;
+
+    power = zeros(K,Nsc);
+
+    throughput = zeros(K,1);
+
+    delay = zeros(K,1);
+
+    %% Resource Allocation
+
+    for sc = 1:Nsc
+
+        [~,user] = max(channel(:,sc));
+
+        power(user,sc) = Pt/Nsc;
+
+    end
+
+    %% Throughput Calculation
+
+    for i=1:K
+
+        rate = 0;
+
+        allocated = find(power(i,:)>0);
+
+        for j=1:length(allocated)
+
+            sc = allocated(j);
+
+            SNR = power(i,sc)*channel(i,sc)/Noise;
+
+            rate = rate + (BW/Nsc)*log2(1+SNR);
+
+        end
+
+        throughput(i)=rate/1e6;
+
+        packetsize = 1;
+
+        delay(i)=packetsize/(throughput(i)+0.001);
+
+    end
+
+    avgThroughput(u)=mean(throughput);
+
+    avgDelay(u)=mean(delay);
+
+    avgPower(u)=sum(power(:));
+
+end
+
+%% Graph 1
+
+figure;
+plot(Users,avgThroughput,'-o','LineWidth',2);
+xlabel('Number of Users');
+ylabel('Average Throughput (Mbps)');
+title('User Density vs Throughput');
+grid on;
+
+%% Graph 2
+
+figure;
+plot(Users,avgDelay,'-s','LineWidth',2);
+xlabel('Number of Users');
+ylabel('Average Delay');
+title('User Density vs Delay');
+grid on;
+
+%% Graph 3
+
+figure;
+plot(Users,avgPower,'-*','LineWidth',2);
+xlabel('Number of Users');
+ylabel('Total Power Allocation (W)');
+title('Power Allocation');
+grid on;
+
+%% Graph 4
+
+K = 50;
+
+channel = abs(randn(K,Nsc)).^2;
+
+imagesc(channel);
+
+xlabel('Subcarrier');
+
+ylabel('Users');
+
+title('Channel Gain Matrix');
+
+colorbar;
+
+%% Graph 5
+
+figure;
+
+bar(sum(power));
+
+xlabel('Subcarrier');
+
+ylabel('Allocated Power');
+
+title('Power per Subcarrier');
+
+grid on;
