@@ -1,0 +1,117 @@
+clc;
+clear;
+close all;
+
+%% LTE-M Wearable Monitoring System
+
+% Simulation Parameters
+SNR_dB = 0:2:20;
+BER = zeros(length(SNR_dB),1);
+PDR = zeros(length(SNR_dB),1);
+Reliability = zeros(length(SNR_dB),1);
+
+%% Wearable Sensor Data
+
+HeartRate = randi([60 100],100,1);      % Heart Rate (bpm)
+Temperature = 36 + rand(100,1)*2;       % Temperature (36-38°C)
+
+disp('Sample Heart Rate Data');
+disp(HeartRate(1:10));
+
+disp('Sample Temperature Data');
+disp(Temperature(1:10));
+
+%% Convert Sensor Data to Binary
+
+% Convert temperature to integer (36.5 -> 365)
+TempInt = round(Temperature * 10);
+
+% Merge sensor values
+sensorData = [HeartRate; TempInt];
+
+% Calculate required number of bits automatically
+numBits = ceil(log2(max(sensorData)+1));
+
+% Convert decimal to binary
+binaryData = dec2bin(sensorData, numBits) - '0';
+
+% Convert matrix to serial bit stream
+txBits = binaryData(:);
+
+%% Simulation
+
+for k = 1:length(SNR_dB)
+
+    snr = SNR_dB(k);
+
+    %% BPSK Modulation
+    txSignal = 2*txBits - 1;
+
+    %% AWGN Channel
+    rxSignal = awgn(txSignal, snr, 'measured');
+
+    %% Receiver
+    rxBits = rxSignal > 0;
+
+    %% BER Calculation
+    numErr = sum(txBits ~= rxBits);
+    BER(k) = numErr / length(txBits);
+
+    %% Packet Delivery Ratio
+    packetSize = 64;
+    packets = floor(length(txBits)/packetSize);
+
+    success = 0;
+
+    for p = 1:packets
+
+        idx1 = (p-1)*packetSize + 1;
+        idx2 = p*packetSize;
+
+        if isequal(txBits(idx1:idx2), rxBits(idx1:idx2))
+            success = success + 1;
+        end
+
+    end
+
+    PDR(k) = success / packets;
+
+    %% Reliability
+    Reliability(k) = (1 - BER(k)) * 100;
+
+end
+
+%% BER Plot
+
+figure;
+semilogy(SNR_dB, BER, '-o','LineWidth',2);
+grid on;
+xlabel('SNR (dB)');
+ylabel('Bit Error Rate (BER)');
+title('BER Performance of LTE-M Wearable Monitoring');
+
+%% PDR Plot
+
+figure;
+plot(SNR_dB, PDR,'-s','LineWidth',2);
+grid on;
+xlabel('SNR (dB)');
+ylabel('Packet Delivery Ratio');
+title('Packet Delivery Ratio');
+
+%% Reliability Plot
+
+figure;
+plot(SNR_dB, Reliability,'-d','LineWidth',2);
+grid on;
+xlabel('SNR (dB)');
+ylabel('Reliability (%)');
+title('Communication Reliability');
+
+%% Display Results
+
+Results = table(SNR_dB', BER, PDR, Reliability,...
+    'VariableNames',{'SNR_dB','BER','PDR','Reliability'});
+
+disp('Simulation Results');
+disp(Results);
